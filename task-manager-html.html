@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto p-6 bg-white rounded-xl shadow-lg max-w-2xl w-full">
+        <h1 class="text-3xl font-bold text-center mb-6">Todo List</h1>
+        
+        <form id="todo-form" class="mb-6 flex space-x-2">
+            <input 
+                type="text" 
+                id="task-input" 
+                placeholder="Enter a new task" 
+                class="flex-grow p-2 border rounded"
+                required
+            >
+            <select 
+                id="task-classification" 
+                class="p-2 border rounded"
+            >
+                <option value="important-urgent">Important & Urgent</option>
+                <option value="important-not-urgent">Important & Not Urgent</option>
+                <option value="not-important-urgent">Not Important & Urgent</option>
+                <option value="not-important-not-urgent">Not Important & Not Urgent</option>
+            </select>
+            <button 
+                type="submit" 
+                class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            >
+                Add Task
+            </button>
+        </form>
+
+        <div class="mb-4 flex justify-end">
+            <button 
+                id="clear-all-btn" 
+                class="bg-red-500 text-white p-2 rounded hover:bg-red-600"
+            >
+                Clear All Tasks
+            </button>
+        </div>
+
+        <div id="task-lists">
+            <div data-classification="important-urgent" class="mb-6">
+                <h2 class="text-xl font-semibold p-2 rounded bg-red-100">Important & Urgent</h2>
+                <ul id="important-urgent-list" class="space-y-2 mt-2"></ul>
+            </div>
+            <div data-classification="important-not-urgent" class="mb-6">
+                <h2 class="text-xl font-semibold p-2 rounded bg-yellow-100">Important & Not Urgent</h2>
+                <ul id="important-not-urgent-list" class="space-y-2 mt-2"></ul>
+            </div>
+            <div data-classification="not-important-urgent" class="mb-6">
+                <h2 class="text-xl font-semibold p-2 rounded bg-green-100">Not Important & Urgent</h2>
+                <ul id="not-important-urgent-list" class="space-y-2 mt-2"></ul>
+            </div>
+            <div data-classification="not-important-not-urgent" class="mb-6">
+                <h2 class="text-xl font-semibold p-2 rounded bg-blue-100">Not Important & Not Urgent</h2>
+                <ul id="not-important-not-urgent-list" class="space-y-2 mt-2"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TodoList {
+            constructor() {
+                this.todos = [];
+                this.todoForm = document.getElementById('todo-form');
+                this.taskInput = document.getElementById('task-input');
+                this.taskClassification = document.getElementById('task-classification');
+                this.clearAllBtn = document.getElementById('clear-all-btn');
+                this.taskLists = document.getElementById('task-lists');
+
+                this.loadTodos();
+                this.initEventListeners();
+            }
+
+            initEventListeners() {
+                this.todoForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addTodo();
+                });
+
+                this.clearAllBtn.addEventListener('click', () => {
+                    this.clearAllTodos();
+                });
+
+                this.taskLists.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    const todoId = e.target.closest('li')?.dataset.id;
+
+                    if (action === 'delete') {
+                        this.deleteTodo(todoId);
+                    } else if (action === 'toggle-complete') {
+                        this.toggleComplete(todoId);
+                    }
+                });
+            }
+
+            addTodo() {
+                const text = this.taskInput.value.trim();
+                if (!text) return;
+
+                const todo = {
+                    id: Date.now().toString(),
+                    text,
+                    classification: this.taskClassification.value,
+                    completed: false
+                };
+
+                this.todos.push(todo);
+                this.saveTodos();
+                this.renderTodos();
+                this.taskInput.value = '';
+            }
+
+            deleteTodo(id) {
+                this.todos = this.todos.filter(todo => todo.id !== id);
+                this.saveTodos();
+                this.renderTodos();
+            }
+
+            toggleComplete(id) {
+                const todo = this.todos.find(todo => todo.id === id);
+                if (todo) {
+                    todo.completed = !todo.completed;
+                    this.saveTodos();
+                    this.renderTodos();
+                }
+            }
+
+            clearAllTodos() {
+                this.todos = [];
+                this.saveTodos();
+                this.renderTodos();
+            }
+
+            saveTodos() {
+                localStorage.setItem('todos', JSON.stringify(this.todos));
+            }
+
+            loadTodos() {
+                const savedTodos = localStorage.getItem('todos');
+                this.todos = savedTodos ? JSON.parse(savedTodos) : [];
+                this.renderTodos();
+            }
+
+            renderTodos() {
+                // Clear existing lists
+                document.querySelectorAll('#task-lists ul').forEach(ul => {
+                    ul.innerHTML = '';
+                });
+
+                // Render todos by classification
+                this.todos.forEach(todo => {
+                    const listElement = document.getElementById(`${todo.classification}-list`);
+                    const li = document.createElement('li');
+                    li.dataset.id = todo.id;
+                    li.className = `flex items-center p-3 rounded ${this.getClassificationClass(todo.classification)} ${todo.completed ? 'opacity-50' : ''}`;
+                    
+                    li.innerHTML = `
+                        <input 
+                            type="checkbox" 
+                            class="mr-3" 
+                            ${todo.completed ? 'checked' : ''} 
+                            data-action="toggle-complete"
+                        >
+                        <span class="flex-grow ${todo.completed ? 'line-through' : ''}">${todo.text}</span>
+                        <button 
+                            class="text-red-600 hover:text-red-800 ml-2" 
+                            data-action="delete"
+                        >
+                            🗑️
+                        </button>
+                    `;
+
+                    listElement.appendChild(li);
+                });
+            }
+
+            getClassificationClass(classification) {
+                const classMap = {
+                    'important-urgent': 'bg-red-100',
+                    'important-not-urgent': 'bg-yellow-100',
+                    'not-important-urgent': 'bg-green-100',
+                    'not-important-not-urgent': 'bg-blue-100'
+                };
+                return classMap[classification] || '';
+            }
+        }
+
+        // Initialize the Todo List
+        new TodoList();
+    </script>
+</body>
+</html>
